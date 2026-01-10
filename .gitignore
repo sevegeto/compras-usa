@@ -35,6 +35,9 @@ ENV/
 # Environment variables
 .env
 
+# Configuration
+config.py
+
 # Credentials
 credenciales.json
 credentials.json

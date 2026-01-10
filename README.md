@@ -32,6 +32,8 @@ pip install -r requirements.txt
 
 3. **Configurar Google Sheets API**
 
+   **Opción A: Cuenta de Servicio (Recomendado para automatización)**
+   
    a. Ve a [Google Cloud Console](https://console.cloud.google.com/)
    
    b. Crea un nuevo proyecto o selecciona uno existente
@@ -40,6 +42,27 @@ pip install -r requirements.txt
       - Ve a "APIs & Services" > "Library"
       - Busca "Google Sheets API"
       - Haz clic en "Enable"
+   
+   d. Crea una cuenta de servicio:
+      - Ve a "APIs & Services" > "Credentials"
+      - Clic en "Create Credentials" > "Service Account"
+      - Completa el nombre y descripción
+      - No necesitas asignar roles específicos
+      - Haz clic en "Done"
+   
+   e. Crea y descarga la clave:
+      - Haz clic en la cuenta de servicio creada
+      - Ve a la pestaña "Keys"
+      - Clic en "Add Key" > "Create new key"
+      - Selecciona "JSON" y descarga
+   
+   f. Renombra el archivo descargado a `credenciales.json` y colócalo en el directorio raíz del proyecto
+   
+   g. Comparte tu Google Sheet con el email de la cuenta de servicio (se encuentra en el archivo JSON)
+
+   **Opción B: OAuth 2.0 (Para uso personal)**
+   
+   a-c. Sigue los mismos pasos a-c de la Opción A
    
    d. Crea credenciales OAuth 2.0:
       - Ve a "APIs & Services" > "Credentials"
@@ -58,6 +81,16 @@ python main.py YOUR_SPREADSHEET_ID
 ```
 
 Donde `YOUR_SPREADSHEET_ID` es el ID de tu hoja de Google Sheets (se encuentra en la URL de la hoja).
+
+### Inicio Rápido con Script
+
+Si ya tienes `credenciales.json` configurado, puedes usar el script de inicio rápido:
+
+```bash
+./run.sh
+```
+
+Este script ejecuta el scraper con la hoja de cálculo y configuración predeterminada.
 
 ### Opciones Avanzadas
 

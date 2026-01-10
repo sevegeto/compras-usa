@@ -59,8 +59,9 @@ def main():
     except Exception as e:
         print(f"✗ Error connecting to Google Sheets: {e}")
         print("\nMake sure you have:")
-        print("1. Created credentials.json in the current directory")
+        print("1. Created credenciales.json (service account) or credentials.json (OAuth) in the current directory")
         print("2. Enabled the Google Sheets API in your Google Cloud project")
+        print("3. Shared the Google Sheet with the service account email (if using credenciales.json)")
         sys.exit(1)
     
     # Read URLs from the specified column

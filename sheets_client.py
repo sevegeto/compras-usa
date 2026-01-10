@@ -5,6 +5,7 @@ Handles reading URLs from and writing scraped data to Google Sheets
 import os.path
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
+from google.oauth2 import service_account
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -30,6 +31,13 @@ class GoogleSheetsClient:
         """Authenticate with Google Sheets API"""
         creds = None
         
+        # Check for service account credentials first (credenciales.json)
+        if os.path.exists('credenciales.json'):
+            creds = service_account.Credentials.from_service_account_file(
+                'credenciales.json', scopes=SCOPES)
+            return build('sheets', 'v4', credentials=creds)
+        
+        # Fall back to OAuth credentials (credentials.json)
         # The file token.json stores the user's access and refresh tokens
         if os.path.exists('token.json'):
             creds = Credentials.from_authorized_user_file('token.json', SCOPES)
@@ -41,7 +49,7 @@ class GoogleSheetsClient:
             else:
                 if not os.path.exists('credentials.json'):
                     raise FileNotFoundError(
-                        "credentials.json not found. Please download it from Google Cloud Console."
+                        "credentials.json or credenciales.json not found. Please provide Google API credentials."
                     )
                 flow = InstalledAppFlow.from_client_secrets_file(
                     'credentials.json', SCOPES)

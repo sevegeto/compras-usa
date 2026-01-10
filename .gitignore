@@ -46,3 +46,7 @@ Thumbs.db
 
 # Environment variables
 .env
+
+# Test files
+test_*.py
+demo.py

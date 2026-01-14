@@ -204,10 +204,19 @@ function processQueuedNotifications() {
   
   Logger.log(`Processing ${pending.length} notifications`);
   
+  // Cache access token to reduce redundant calls
+  let accessToken;
+  try {
+    accessToken = getAccessToken();
+  } catch (error) {
+    logError('processQueuedNotifications', 0, 'Failed to get access token', error.toString());
+    return;
+  }
+  
   pending.forEach(item => {
     try {
       const notification = item.notification;
-      processNotification(notification);
+      processNotification(notification, accessToken);
     } catch (error) {
       logError('processQueuedNotifications', 0, error.toString(), JSON.stringify(item));
     }
@@ -221,7 +230,7 @@ function processQueuedNotifications() {
 /**
  * Process individual notification based on topic
  */
-function processNotification(notification) {
+function processNotification(notification, accessToken) {
   const topic = notification.topic;
   const resource = notification.resource;
   const userId = notification.user_id;
@@ -231,23 +240,23 @@ function processNotification(notification) {
   // Route to appropriate handler based on topic
   switch(topic) {
     case 'items':
-      processItemNotification(notification);
+      processItemNotification(notification, accessToken);
       break;
     case 'orders_v2':
     case 'orders':
-      processOrderNotification(notification);
+      processOrderNotification(notification, accessToken);
       break;
     case 'questions':
-      processQuestionNotification(notification);
+      processQuestionNotification(notification, accessToken);
       break;
     case 'payments':
-      processPaymentNotification(notification);
+      processPaymentNotification(notification, accessToken);
       break;
     case 'messages':
-      processMessageNotification(notification);
+      processMessageNotification(notification, accessToken);
       break;
     case 'shipments':
-      processShipmentNotification(notification);
+      processShipmentNotification(notification, accessToken);
       break;
     default:
       Logger.log(`Unhandled topic: ${topic}`);
@@ -258,18 +267,18 @@ function processNotification(notification) {
 /**
  * Process item notification
  */
-function processItemNotification(notification) {
+function processItemNotification(notification, accessToken) {
   const itemId = notification.resource.split('/').pop();
+  // Call existing function which gets its own token
   processItemChange(itemId);
 }
 
 /**
  * Process order notification - Log to Google Sheets
  */
-function processOrderNotification(notification) {
+function processOrderNotification(notification, accessToken) {
   try {
     const orderId = notification.resource.split('/').pop();
-    const accessToken = getAccessToken();
     const url = `${ML_API_BASE}/orders/${orderId}`;
     
     const options = {
@@ -297,10 +306,9 @@ function processOrderNotification(notification) {
 /**
  * Process question notification - Log to Google Sheets
  */
-function processQuestionNotification(notification) {
+function processQuestionNotification(notification, accessToken) {
   try {
     const questionId = notification.resource.split('/').pop();
-    const accessToken = getAccessToken();
     const url = `${ML_API_BASE}/questions/${questionId}`;
     
     const options = {
@@ -328,9 +336,8 @@ function processQuestionNotification(notification) {
 /**
  * Process payment notification - Log to Google Sheets
  */
-function processPaymentNotification(notification) {
+function processPaymentNotification(notification, accessToken) {
   try {
-    const accessToken = getAccessToken();
     const url = `${ML_API_BASE}${notification.resource}`;
     
     const options = {
@@ -358,10 +365,9 @@ function processPaymentNotification(notification) {
 /**
  * Process message notification - Log to Google Sheets
  */
-function processMessageNotification(notification) {
+function processMessageNotification(notification, accessToken) {
   try {
-    const messageId = notification.resource;
-    const accessToken = getAccessToken();
+    const messageId = notification.resource; // Already in format 'message_{id}'
     const url = `${ML_API_BASE}/messages/${messageId}`;
     
     const options = {
@@ -389,10 +395,9 @@ function processMessageNotification(notification) {
 /**
  * Process shipment notification - Log to Google Sheets
  */
-function processShipmentNotification(notification) {
+function processShipmentNotification(notification, accessToken) {
   try {
     const shipmentId = notification.resource.split('/').pop();
-    const accessToken = getAccessToken();
     const url = `${ML_API_BASE}/shipments/${shipmentId}`;
     
     const options = {
@@ -869,8 +874,8 @@ function logOrderToSheet(order) {
     items,
     order.total_amount,
     order.currency_id,
-    order.payments ? order.payments[0]?.status : 'N/A',
-    order.shipping ? order.shipping.status : 'N/A'
+    order.payments?.[0]?.status || 'N/A',
+    order.shipping?.status || 'N/A'
   ]);
 }
 
@@ -984,7 +989,7 @@ function logShipmentToSheet(shipment) {
     shipment.status,
     shipment.tracking_number || 'N/A',
     shipment.logistic_type || 'N/A',
-    shipment.estimated_delivery_time ? new Date(shipment.estimated_delivery_time.date) : 'N/A'
+    shipment.estimated_delivery_time?.date ? new Date(shipment.estimated_delivery_time.date) : 'N/A'
   ]);
 }
 

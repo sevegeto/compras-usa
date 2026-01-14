@@ -1,9 +1,10 @@
-# Compras USA - Web Scraper
+# Compras USA - Web Scraper + MercadoLibre Integration
 
-Script avanzado para scrapear múltiples sitios web de compras (GunMagWarehouse, eBay, Amazon, Academy) y guardar automáticamente los datos en Google Sheets.
+Script avanzado para scrapear múltiples sitios web de compras (GunMagWarehouse, eBay, Amazon, Academy) y guardar automáticamente los datos en Google Sheets. Incluye integración completa con la API de notificaciones de MercadoLibre.
 
 ## 🚀 Características
 
+### Web Scraping
 - ✅ **Scraping de múltiples sitios**: Soporta GunMagWarehouse, eBay, Amazon y Academy
 - ✅ **Integración con Google Sheets**: Guarda automáticamente los productos extraídos
 - ✅ **Configuración mediante variables de entorno**: Sin rutas hardcodeadas
@@ -12,6 +13,27 @@ Script avanzado para scrapear múltiples sitios web de compras (GunMagWarehouse,
 - ✅ **Manejo de errores**: Reintentos automáticos y manejo graceful de fallos
 - ✅ **Modo headless**: Ejecuta sin interfaz gráfica para mayor eficiencia
 - ✅ **Type hints**: Código documentado con tipos para mejor mantenibilidad
+
+### MercadoLibre Integration (NEW! 🎉)
+- ✅ **Webhook real-time**: Respuesta HTTP 200 en <500ms (cumple requisitos de ML)
+- ✅ **Procesamiento asíncrono**: Cola de notificaciones con triggers automáticos
+- ✅ **6+ tipos de notificaciones**: Items, Orders, Questions, Payments, Messages, Shipments
+- ✅ **Logging automático**: Cada notificación se registra en Google Sheets
+- ✅ **Auditoría de inventario**: Detecta cambios phantom en stock
+- ✅ **Tracking de ventas**: Monitoreo completo del ciclo de venta
+- ✅ **Suite de pruebas**: Tests comprehensivos para todos los tipos de notificaciones
+
+## 📚 Documentation
+
+### MercadoLibre Webhook Setup
+- **[WEBHOOK_SETUP.md](WEBHOOK_SETUP.md)** - Complete setup guide, troubleshooting, and best practices
+- **[WEBHOOK_API_REFERENCE.md](WEBHOOK_API_REFERENCE.md)** - API reference, functions, and quick examples
+
+### Main Files
+- **main.js** - MercadoLibre webhook handler and notification processing
+- **Test.js** - Comprehensive test suite for webhooks
+- **tokenz.js** - Authentication and token management
+- **scraper.py** - Web scraping orchestrator
 
 ## 📋 Requisitos
 

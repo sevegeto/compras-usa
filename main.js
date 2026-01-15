@@ -52,9 +52,15 @@ function onOpen() {
 
   // ==================== WEBHOOKS SUBMENU ====================
   const webhookMenu = ui.createMenu('🔗 Webhooks');
-  webhookMenu.addItem('📝 Registrar Webhook en ML', 'registerWebhook')
+  webhookMenu.addItem('🔍 DIAGNÓSTICO COMPLETO', 'diagnoseWebhookIssues')
+             .addItem('🔧 Quick Fix (Auto-configurar)', 'quickFixWebhook')
+             .addSeparator()
+             .addItem('📝 Registrar Webhook en ML', 'registerWebhook')
              .addItem('✅ Verificar Estado Webhook', 'verifyWebhookStatus')
              .addItem('🔄 Recuperar Notificaciones Perdidas', 'checkMissedFeeds')
+             .addSeparator()
+             .addItem('📋 Configurar URL del Web App', 'setWebAppUrl')
+             .addItem('🧪 Test Endpoint Manual', 'testWebhookEndpoint')
              .addSeparator()
              .addItem('🔧 Configurar Trigger de Cola', 'setupNotificationTrigger')
              .addItem('👁️ Ver Cola Pendiente', 'viewNotificationQueue')

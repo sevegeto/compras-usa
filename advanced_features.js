@@ -342,33 +342,10 @@ function updateItemStock(itemId, newStock) {
 }
 
 /**
- * Create a custom menu in Google Sheets
- * Adds easy access to all functions
+ * REMOVED: onOpen menu moved to main.js for centralized menu management
+ * All functions are now available through the comprehensive menu in main.js
+ * See main.js onOpen() function for the unified menu structure
  */
-function onOpen() {
-  const ui = SpreadsheetApp.getUi();
-
-  ui.createMenu('🔍 Auditoría ML')
-    .addItem('🔄 Sincronizar Inventario', 'fullInventoryAudit')
-    .addSeparator()
-    .addItem('📊 Generar Reporte Diario', 'generateDailyReport')
-    .addItem('💰 Calcular Finanzas', 'updateFinancials')
-    .addItem('⚖️ Auditoría ML vs UpSeller', 'runSyncAudit')
-    .addItem('📦 Check Stock UpSeller', 'notifyOutOfStock')
-    .addItem('🔧 Programar Limpieza Automática', 'scheduleMaintenance')
-    .addItem('📉 Reporte de Reabastecimiento', 'generateSalesVelocityReport')
-    .addItem('🔄 Recuperar Notificaciones Perdidas', 'checkMissedFeeds')
-    .addItem('📅 Activar Reporte Semanal', 'scheduleWeeklyReport')
-    .addItem('🛑 DETENER TODO (Kill Triggers)', 'killAllTriggers')
-    .addItem('📈 Analizar Patrones', 'analyzeStockPatterns')
-    .addSeparator()
-    .addItem('💾 Exportar Log a CSV', 'exportLogToCSV')
-    .addItem('🗄️ Archivar Logs Antiguos', 'promptArchiveLogs')
-    .addSeparator()
-    .addItem('✅ Verificar Estado Webhook', 'verifyWebhookStatus')
-    .addItem('🔧 Configuración Inicial', 'setup')
-    .addToUi();
-}
 
 /**
  * Prompt for archive days

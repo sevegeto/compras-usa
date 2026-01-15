@@ -12,14 +12,94 @@ const MAX_EXECUTION_TIME = 270000; // 4.5 minutos
 
 function onOpen() {
   const ui = SpreadsheetApp.getUi();
-  ui.createMenu('🔧 Mercado Libre')
-    .addItem('⚙️ Configurar Hojas', 'setup')
-    .addSeparator()
-    .addItem('🔄 Auditoría Completa (6k+)', 'fullInventoryAudit')
-    .addItem('🔑 Refrescar Token Manual', 'forceRefreshToken')
-    .addSeparator()
-    .addItem('🛑 DETENER TODO', 'killAllTriggers')
-    .addToUi();
+
+  // Main Menu
+  const menu = ui.createMenu('🔧 Mercado Libre');
+
+  // ==================== SETUP & CONFIG ====================
+  menu.addItem('⚙️ Configurar Sistema Completo', 'setup')
+      .addItem('🔑 Configurar Credenciales', 'setupCredentials')
+      .addItem('🔄 Refrescar Token', 'forceRefreshToken')
+      .addSeparator();
+
+  // ==================== TESTING SUBMENU ====================
+  const testMenu = ui.createMenu('🧪 Tests & Diagnósticos');
+  testMenu.addItem('🔬 Test Completo del Sistema', 'runFullSystemTest')
+          .addItem('🔍 Diagnóstico Profundo', 'deepDiagnostics')
+          .addSeparator()
+          .addItem('📦 Test Webhook Items', 'testWebhookSimulation')
+          .addItem('🛒 Test Webhook Orders', 'testOrderNotification')
+          .addItem('❓ Test Webhook Questions', 'testQuestionNotification')
+          .addItem('💳 Test Webhook Payments', 'testPaymentNotification')
+          .addItem('💬 Test Webhook Messages', 'testMessageNotification')
+          .addItem('📮 Test Webhook Shipments', 'testShipmentNotification')
+          .addItem('❌ Test Webhook Inválido', 'testInvalidWebhook')
+          .addItem('🎭 Test Tópico No Manejado', 'testUnhandledTopicNotification')
+          .addSeparator()
+          .addItem('⚙️ Procesar Cola Manualmente', 'testProcessQueue')
+          .addItem('👁️ Ver Cola de Notificaciones', 'viewNotificationQueue')
+          .addItem('🧹 Limpiar Cola', 'clearNotificationQueue');
+
+  // ==================== INVENTORY SUBMENU ====================
+  const inventoryMenu = ui.createMenu('📦 Inventario');
+  inventoryMenu.addItem('🔄 Auditoría Completa (6k+ items)', 'fullInventoryAudit')
+               .addItem('📊 Actualizar Stock desde Snapshot', 'bulkUpdateStockFromSnapshot')
+               .addItem('📈 Analizar Patrones de Stock', 'analyzeStockPatterns')
+               .addSeparator()
+               .addItem('⚖️ Auditoría ML vs UpSeller', 'runSyncAudit')
+               .addItem('📉 Reporte Velocidad Ventas', 'generateSalesVelocityReport')
+               .addItem('📦 Notificar Sin Stock (UpSeller)', 'notifyOutOfStock');
+
+  // ==================== WEBHOOKS SUBMENU ====================
+  const webhookMenu = ui.createMenu('🔗 Webhooks');
+  webhookMenu.addItem('📝 Registrar Webhook en ML', 'registerWebhook')
+             .addItem('✅ Verificar Estado Webhook', 'verifyWebhookStatus')
+             .addItem('🔄 Recuperar Notificaciones Perdidas', 'checkMissedFeeds')
+             .addSeparator()
+             .addItem('🔧 Configurar Trigger de Cola', 'setupNotificationTrigger')
+             .addItem('👁️ Ver Cola Pendiente', 'viewNotificationQueue')
+             .addItem('⚙️ Procesar Cola Ahora', 'processQueuedNotifications');
+
+  // ==================== REPORTS SUBMENU ====================
+  const reportsMenu = ui.createMenu('📊 Reportes');
+  reportsMenu.addItem('📋 Reporte Diario', 'generateDailyReport')
+             .addItem('📅 Reporte Semanal (Enviar)', 'sendWeeklyReport')
+             .addItem('⏰ Programar Reportes Automáticos', 'scheduleAutomaticReports')
+             .addItem('📅 Activar Reporte Semanal', 'scheduleWeeklyReport')
+             .addSeparator()
+             .addItem('💰 Calcular Finanzas', 'updateFinancials')
+             .addItem('📧 Enviar Reporte Diario por Email', 'sendDailyReportEmail');
+
+  // ==================== MAINTENANCE SUBMENU ====================
+  const maintenanceMenu = ui.createMenu('🔧 Mantenimiento');
+  maintenanceMenu.addItem('🧹 Archivar Logs Antiguos', 'promptArchiveLogs')
+                 .addItem('🗓️ Programar Limpieza Automática', 'scheduleMaintenance')
+                 .addItem('🔄 Mantenimiento Mensual Completo', 'runMonthlyMaintenance')
+                 .addSeparator()
+                 .addItem('📊 Actualizar Stats del Dashboard', 'updateDashboardStats')
+                 .addItem('🔄 Reiniciar Sistema Completo', 'restartSystem');
+
+  // ==================== UTILITIES SUBMENU ====================
+  const utilitiesMenu = ui.createMenu('🛠️ Utilidades');
+  utilitiesMenu.addItem('💾 Exportar Log a CSV', 'exportLogToCSV')
+               .addItem('📋 Exportar Propiedades del Proyecto', 'exportarPropiedadesProyecto')
+               .addItem('📥 Importar Propiedades desde Hoja', 'importarPropiedadesDesdeHoja')
+               .addSeparator()
+               .addItem('🗺️ Generar Mapa de Estructura', 'uiGenerarMapa')
+               .addItem('📝 Formatear Hoja de Compras', 'formatearCompras')
+               .addSeparator()
+               .addItem('🔧 Corregir Seller ID', 'fixBadSellerId');
+
+  // ==================== DANGER ZONE ====================
+  menu.addSubMenu(testMenu)
+      .addSubMenu(inventoryMenu)
+      .addSubMenu(webhookMenu)
+      .addSubMenu(reportsMenu)
+      .addSubMenu(maintenanceMenu)
+      .addSubMenu(utilitiesMenu)
+      .addSeparator()
+      .addItem('🛑 DETENER TODOS LOS TRIGGERS', 'killAllTriggers')
+      .addToUi();
 }
 
 function setup() {

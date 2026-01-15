@@ -14,12 +14,16 @@
  * UI
  
 
-function onOpen() {
-  SpreadsheetApp.getUi()
-    .createMenu('AI Helper')
-    .addItem('Generar Mapa de Estructura', 'uiGenerarMapa')
-    .addToUi();
-}
+/**
+ * REMOVED: Menu integrated into main.js unified menu
+ * This function is now accessible through: 🛠️ Utilidades → 🗺️ Generar Mapa de Estructura
+ */
+// function onOpen() {
+//   SpreadsheetApp.getUi()
+//     .createMenu('AI Helper')
+//     .addItem('Generar Mapa de Estructura', 'uiGenerarMapa')
+//     .addToUi();
+// }
 * ===================================================== */
 
 

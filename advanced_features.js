@@ -39,23 +39,32 @@ function exportLogToCSV() {
  */
 function archiveOldLogs(daysToKeep = 90) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const logSheet = ss.getSheetByName('Log_Movimientos');
+  
+  // 1. Limpieza de Log_Movimientos (Mueve a Archivo)
+  cleanSheet(ss, 'Log_Movimientos', 'Log_Movimientos_Archivo', daysToKeep);
+  
+  // 2. Limpieza de RAW_Webhook_Log (Borrado directo o archivo)
+  // Dado que son logs técnicos, sugiero borrarlos para ahorrar espacio, 
+  // pero si quieres guardarlos, usa el mismo método. Aquí los borraremos.
+  cleanSheet(ss, 'RAW_Webhook_Log', null, daysToKeep); // Null = Borrar sin archivar
+  
+  Logger.log(`✅ Mantenimiento completado. Se conservaron los últimos ${daysToKeep} días.`);
+}
 
-  // Create or get archive sheet
-  let archiveSheet = ss.getSheetByName('Log_Movimientos_Archivo');
-  if (!archiveSheet) {
-    archiveSheet = ss.insertSheet('Log_Movimientos_Archivo');
-    // Copy headers
-    const headers = logSheet.getRange('A1:H1').getValues();
-    archiveSheet.getRange('A1:H1').setValues(headers);
-    archiveSheet.getRange('A1:H1').setFontWeight('bold').setBackground('#CCCCCC');
-  }
+/**
+ * Función genérica de limpieza
+ */
+function cleanSheet(ss, sheetName, archiveName, daysToKeep) {
+  const sheet = ss.getSheetByName(sheetName);
+  if (!sheet) return;
 
   const cutoffDate = new Date(Date.now() - daysToKeep * 24 * 60 * 60 * 1000);
-  const data = logSheet.getDataRange().getValues();
+  const data = sheet.getDataRange().getValues();
+  
+  if (data.length <= 1) return; // Solo headers
 
+  const toKeep = [data[0]]; // Headers
   const toArchive = [];
-  const toKeep = [data[0]]; // Keep headers
 
   for (let i = 1; i < data.length; i++) {
     const rowDate = new Date(data[i][0]);
@@ -66,19 +75,23 @@ function archiveOldLogs(daysToKeep = 90) {
     }
   }
 
+  // Si hay datos viejos
   if (toArchive.length > 0) {
-    // Append to archive
-    const lastArchiveRow = archiveSheet.getLastRow();
-    archiveSheet.getRange(lastArchiveRow + 1, 1, toArchive.length, 8).setValues(toArchive);
-
-    // Update main log
-    logSheet.clear();
-    logSheet.getRange(1, 1, toKeep.length, 8).setValues(toKeep);
-    setupLogMovimientos(ss); // Reapply formatting
-
-    Logger.log(`Archived ${toArchive.length} old entries`);
-  } else {
-    Logger.log('No entries to archive');
+    // Si se especificó hoja de archivo, moverlos allí
+    if (archiveName) {
+      let archiveSheet = ss.getSheetByName(archiveName);
+      if (!archiveSheet) {
+        archiveSheet = ss.insertSheet(archiveName);
+        archiveSheet.appendRow(data[0]); // Headers
+      }
+      const lastRow = archiveSheet.getLastRow();
+      archiveSheet.getRange(lastRow + 1, 1, toArchive.length, data[0].length).setValues(toArchive);
+    }
+    
+    // Reescribir la hoja original solo con los datos nuevos
+    sheet.clearContents();
+    sheet.getRange(1, 1, toKeep.length, data[0].length).setValues(toKeep);
+    Logger.log(`🧹 ${sheetName}: ${toArchive.length} filas eliminadas/archivadas.`);
   }
 }
 
@@ -339,6 +352,14 @@ function onOpen() {
     .addItem('🔄 Sincronizar Inventario', 'fullInventoryAudit')
     .addSeparator()
     .addItem('📊 Generar Reporte Diario', 'generateDailyReport')
+    .addItem('💰 Calcular Finanzas', 'updateFinancials')
+    .addItem('⚖️ Auditoría ML vs UpSeller', 'runSyncAudit')
+    .addItem('📦 Check Stock UpSeller', 'notifyOutOfStock')
+    .addItem('🔧 Programar Limpieza Automática', 'scheduleMaintenance')
+    .addItem('📉 Reporte de Reabastecimiento', 'generateSalesVelocityReport')
+    .addItem('🔄 Recuperar Notificaciones Perdidas', 'checkMissedFeeds')
+    .addItem('📅 Activar Reporte Semanal', 'scheduleWeeklyReport')
+    .addItem('🛑 DETENER TODO (Kill Triggers)', 'killAllTriggers')
     .addItem('📈 Analizar Patrones', 'analyzeStockPatterns')
     .addSeparator()
     .addItem('💾 Exportar Log a CSV', 'exportLogToCSV')

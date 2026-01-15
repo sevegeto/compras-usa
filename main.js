@@ -19,7 +19,10 @@ function onOpen() {
   // ==================== SETUP & CONFIG ====================
   menu.addItem('⚙️ Configurar Sistema Completo', 'setup')
       .addItem('🔑 Configurar Credenciales', 'setupCredentials')
+      .addSeparator()
+      .addItem('🆕 Obtener Nuevos Tokens (Nueva App)', 'getNewTokensQuickStart')
       .addItem('🔄 Refrescar Token', 'forceRefreshToken')
+      .addItem('👁️ Ver Credenciales Actuales', 'showCurrentCredentials')
       .addSeparator();
 
   // ==================== TESTING SUBMENU ====================

@@ -321,3 +321,126 @@ function validateAllSheets() {
   Logger.log('=== Sheet Validation Results ===');
   results.forEach(r => Logger.log(r));
 }
+
+/**
+ * Full inventory audit using ML Scroll API with timeout protection
+ * Fetches all items and populates Snapshot_Inventario sheet
+ */
+function fullInventoryAudit() {
+  const functionName = 'fullInventoryAudit';
+  startExecutionTimer();
+  
+  try {
+    logInfo(functionName, 'Starting full inventory audit');
+    
+    const token = getAccessToken();
+    if (!token) {
+      throw new Error('No access token available');
+    }
+    
+    const props = PropertiesService.getScriptProperties();
+    const userId = props.getProperty('ML_USER_ID');
+    if (!userId) {
+      throw new Error('ML_USER_ID not configured in Script Properties');
+    }
+    
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = safeGetSheet(SHEET_CONFIG.SNAPSHOT_INVENTARIO.NAME, true);
+    if (!sheet) {
+      throw new Error('Failed to create/access Snapshot_Inventario sheet');
+    }
+    
+    // Clear existing data (keep headers)
+    const lastRow = sheet.getLastRow();
+    if (lastRow > 1) {
+      sheet.deleteRows(2, lastRow - 1);
+    }
+    
+    // Initialize headers if needed
+    if (sheet.getLastRow() === 0) {
+      const headers = ['ID', 'SKU', 'Título', 'Stock', 'Última Actualización'];
+      sheet.appendRow(headers);
+      sheet.getRange(1, 1, 1, 5).setFontWeight('bold').setBackground('#d9ead3');
+    }
+    
+    // Fetch items using Scroll API
+    const api = new MercadoLibreAPI(token);
+    let scrollId = null;
+    let totalFetched = 0;
+    const limit = 100;
+    const batchData = [];
+    
+    // Initial request
+    const initialUrl = `${ML_API_BASE}/users/${userId}/items/search?search_type=scan&limit=${limit}`;
+    const initialResponse = api.fetchWithRetry(initialUrl);
+    const initialData = JSON.parse(initialResponse.getContentText());
+    
+    const totalItems = initialData.paging?.total || 0;
+    scrollId = initialData.scroll_id;
+    
+    logInfo(functionName, `Total items to fetch: ${totalItems}`);
+    
+    // Scroll through all items with timeout checks
+    while (scrollId && hasTimeRemaining(60000)) {
+      checkTimeout(functionName);
+      
+      const url = `${ML_API_BASE}/users/${userId}/items/search?search_type=scan&limit=${limit}&scroll_id=${scrollId}`;
+      const response = api.fetchWithRetry(url);
+      const data = JSON.parse(response.getContentText());
+      
+      if (!data.results || data.results.length === 0) {
+        logInfo(functionName, 'No more results');
+        break;
+      }
+      
+      // Fetch item details in batch
+      const itemIds = data.results;
+      const detailsUrl = `${ML_API_BASE}/items?ids=${itemIds.join(',')}`;
+      const detailsResponse = api.fetchWithRetry(detailsUrl);
+      const details = JSON.parse(detailsResponse.getContentText());
+      
+      // Process batch
+      details.forEach(item => {
+        const body = item.body || item;
+        batchData.push([
+          body.id,
+          body.seller_custom_field || '',
+          body.title || '',
+          body.available_quantity || 0,
+          new Date()
+        ]);
+      });
+      
+      totalFetched += itemIds.length;
+      logInfo(functionName, `Progress: ${totalFetched}/${totalItems}`);
+      
+      // Write batch to sheet every 100 items
+      if (batchData.length >= 100) {
+        safeWriteToSheet(SHEET_CONFIG.SNAPSHOT_INVENTARIO.NAME, sheet.getLastRow() + 1, 1, batchData);
+        batchData.length = 0; // Clear batch
+      }
+      
+      scrollId = data.scroll_id;
+      Utilities.sleep(300); // Rate limiting
+      
+      if (totalFetched >= totalItems) break;
+    }
+    
+    // Write remaining batch
+    if (batchData.length > 0) {
+      safeWriteToSheet(SHEET_CONFIG.SNAPSHOT_INVENTARIO.NAME, sheet.getLastRow() + 1, 1, batchData);
+    }
+    
+    logInfo(functionName, `Audit complete. Fetched ${totalFetched} items`);
+    SpreadsheetApp.getUi().alert(`✅ Inventory Audit Complete\n\nFetched ${totalFetched} of ${totalItems} items`);
+    
+  } catch (error) {
+    if (error instanceof TimeoutError) {
+      logError(functionName, 'Execution timeout - partial results saved', error);
+      SpreadsheetApp.getUi().alert('⚠️ Timeout Warning\n\nAudit stopped due to execution time limit. Partial results have been saved. Run again to continue.');
+    } else {
+      logError(functionName, 'Audit failed', error);
+      throw error;
+    }
+  }
+}

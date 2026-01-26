@@ -25,15 +25,30 @@ function scheduleWeeklyReport() {
 }
 
 function sendWeeklyReport() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const dashboard = ss.getSheetByName('Dashboard');
-  const snapshot = ss.getSheetByName('Snapshot_Inventario');
-  const props = PropertiesService.getScriptProperties();
-  const email = props.getProperty('REPORT_EMAIL') || Session.getActiveUser().getEmail();
+  const functionName = 'sendWeeklyReport';
+  startExecutionTimer();
+  
+  try {
+    logInfo(functionName, 'Starting weekly report generation');
+    
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const dashboard = safeGetSheet('Dashboard');
+    const snapshot = safeGetSheet('Snapshot_Inventario');
+    
+    if (!dashboard) {
+      throw new Error('Dashboard sheet not found');
+    }
+    
+    if (!snapshot) {
+      Logger.log('⚠️ Snapshot_Inventario not found, skipping some metrics');
+    }
+    
+    const props = PropertiesService.getScriptProperties();
+    const email = props.getProperty('REPORT_EMAIL') || Session.getActiveUser().getEmail();
 
-  // 1. Gather Metrics
-  const totalItems = dashboard.getRange('B5').getValue();
-  const zeroDays = dashboard.getRange('B7').getValue();
+    // 1. Gather Metrics with null checks
+    const totalItems = dashboard.getRange('B5').getValue() || 0;
+    const zeroDays = dashboard.getRange('B7').getValue() || 0;
   
   // Financials (Assuming they are calculated in rows 13-16 approx, or hardcoded position from Financials.js)
   // Let's re-calculate fresh financials to be sure

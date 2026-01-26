@@ -49,9 +49,12 @@ function onOpen() {
   // Submenús de Mantenimiento / Utilidades
   const maintenanceMenu = ui.createMenu('🛠️ Utilidades');
   maintenanceMenu.addItem('✅ Verificar Estado Conexión', 'verificarEstado')
+                 .addItem('✅ Validar Estructura de Hojas', 'validateAllSheets')
+                 .addItem('📊 Ver Estadísticas de Cola', 'viewNotificationQueue')
                  .addItem('🛑 Detener Todos los Triggers', 'killAllTriggers')
-                 .addItem('🧹 Limpiar Logs', 'clearLogs') // placeholder
-                 .addItem('🛠️ Reconfigurar Sistema', 'reconfigureSystem'); // placeholder
+                 .addItem('🧹 Limpiar Logs', 'clearLogs')
+                 .addItem('🧹 Limpiar IDs Procesados', 'clearProcessedIds')
+                 .addItem('🛠️ Reconfigurar Sistema', 'reconfigureSystem');
 
   // Combinar todo en menú principal
   menu.addSubMenu(inventoryMenu)
@@ -65,9 +68,10 @@ function onOpen() {
 // AUTH
 // ============================================================================
 function showAuthLink() {
+  const config = getAppConfig();
   const authUrl =
     `https://auth.mercadolibre.com.mx/authorization` +
-    `?response_type=code&client_id=${APP_ID}&redirect_uri=${REDIRECT_URI}`;
+    `?response_type=code&client_id=${config.APP_ID}&redirect_uri=${config.REDIRECT_URI}`;
 
   SpreadsheetApp.getUi().alert(
     'Abre este enlace para autorizar Mercado Libre:\n\n' + authUrl
@@ -88,7 +92,7 @@ function doGet(e) {
 }
 
 // ============================================================================
-// WEBHOOK
+// WEBHOOK - With Idempotency & Queue Management
 // ============================================================================
 function doPost(e) {
   const response = ContentService.createTextOutput(
@@ -99,16 +103,14 @@ function doPost(e) {
     if (!e?.postData?.contents) return response;
 
     const notification = JSON.parse(e.postData.contents);
-    const props = PropertiesService.getScriptProperties();
-    const key = 'PENDING_NOTIFICATIONS';
-    const queue = JSON.parse(props.getProperty(key) || '[]');
-
-    queue.push({
-      notification,
-      received: new Date().toISOString()
-    });
-
-    props.setProperty(key, JSON.stringify(queue));
+    
+    // Use NotificationQueue.js for idempotency and size management
+    const result = addNotificationToQueue(notification);
+    
+    if (!result.success) {
+      Logger.log(`⚠️ Notification not queued: ${result.message}`);
+    }
+    
   } catch (err) {
     Logger.log('Webhook error: ' + err);
   }
@@ -172,27 +174,28 @@ function forceRefreshToken() {
 // COLA SEGURA (NO PIERDE EVENTOS)
 // ============================================================================
 function processQueuedNotifications() {
-  const props = PropertiesService.getScriptProperties();
-  const key = 'PENDING_NOTIFICATIONS';
-  const queue = JSON.parse(props.getProperty(key) || '[]');
-  if (!queue.length) return;
+  // Use NotificationQueue.js for idempotency and proper retry logic
+  const stats = processQueueWithIdempotency();
+  
+  SpreadsheetApp.getUi().alert(
+    `Queue Processing Complete:\n` +
+    `✅ Processed: ${stats.processed}\n` +
+    `❌ Failed: ${stats.failed}\n` +
+    `⏭️ Skipped (duplicates): ${stats.skipped}`
+  );
+  
+  return stats;
+}
 
-  let token = getAccessToken();
-  if (!token) token = refreshAccessToken();
-  if (!token) return;
-
-  const remaining = [];
-
-  queue.forEach(item => {
-    try {
-      processNotification(item.notification, token);
-    } catch (e) {
-      Logger.log('Error procesando notificación, se reencola: ' + e);
-      remaining.push(item);
-    }
-  });
-
-  props.setProperty(key, JSON.stringify(remaining));
+function viewNotificationQueue() {
+  const stats = getQueueStats();
+  
+  SpreadsheetApp.getUi().alert(
+    `Notification Queue Status:\n\n` +
+    `📊 Pending: ${stats.pending}\n` +
+    `✅ Processed: ${stats.processed}\n` +
+    `📈 Capacity: ${stats.utilizationPercent}% (${stats.pending}/${stats.maxCapacity})`
+  );
 }
 
 // ============================================================================
@@ -212,7 +215,7 @@ function processNotification(notification, token) {
 }
 
 // ============================================================================
-// INVENTARIO
+// INVENTARIO - Using centralized SheetConfig
 // ============================================================================
 function processItemDetails(ids, token) {
   if (!ids.length) return;
@@ -225,18 +228,23 @@ function processItemDetails(ids, token) {
   const data = JSON.parse(res.getContentText());
   const items = data.map(d => d.body || d);
 
-  const sheet = SpreadsheetApp.getActive().getSheetByName('Snapshot_Inventario');
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_CONFIG.SNAPSHOT_INVENTARIO.NAME);
   if (!sheet) return;
 
   const values = sheet.getDataRange().getValues();
+  const idIdx = getColumnIndex('SNAPSHOT_INVENTARIO', 'ID');
+  const stockIdx = getColumnIndex('SNAPSHOT_INVENTARIO', 'STOCK');
+  const updateIdx = getColumnIndex('SNAPSHOT_INVENTARIO', 'LAST_UPDATE');
+  
   const index = {};
-  values.forEach((r, i) => index[r[0]] = i + 1);
+  values.forEach((r, i) => index[r[idIdx]] = i + 1);
 
   items.forEach(it => {
     const row = index[it.id];
     if (row) {
-      sheet.getRange(row, 4).setValue(it.available_quantity);
-      sheet.getRange(row, 5).setValue(new Date());
+      sheet.getRange(row, stockIdx + 1).setValue(it.available_quantity);
+      sheet.getRange(row, updateIdx + 1).setValue(new Date());
     }
   });
 }
@@ -282,4 +290,34 @@ function setup() {
 function verificarEstado() {
   const t = getAccessToken();
   Logger.log(t ? 'Conectado' : 'No conectado');
+}
+
+/**
+ * Validates all sheet structures match expected configuration
+ */
+function validateAllSheets() {
+  const sheetsToValidate = ['PRODUCTOS', 'SNAPSHOT_INVENTARIO', 'UPSELLER', 'PAUSADAS', 'LOGS'];
+  const results = [];
+  
+  sheetsToValidate.forEach(sheetKey => {
+    const config = SHEET_CONFIG[sheetKey];
+    if (!config) {
+      results.push(`⚠️ ${sheetKey}: No config found`);
+      return;
+    }
+    
+    const validation = validateSheetHeaders(config.NAME);
+    if (validation.valid) {
+      results.push(`✅ ${config.NAME}: Valid`);
+    } else {
+      results.push(`❌ ${config.NAME}: ERRORS FOUND`);
+      validation.errors.forEach(err => results.push(`   - ${err}`));
+    }
+  });
+  
+  const ui = SpreadsheetApp.getUi();
+  ui.alert('Sheet Structure Validation\n\n' + results.join('\n'));
+  
+  Logger.log('=== Sheet Validation Results ===');
+  results.forEach(r => Logger.log(r));
 }

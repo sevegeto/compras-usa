@@ -1,12 +1,13 @@
 /**
  * ML VS UPSELLER SYNC AUDIT
  * Compares real-time ML stock with manual UpSeller records to find discrepancies.
+ * Uses centralized SheetConfig.js for column consistency
  */
 
 function runSyncAudit() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const mlSheet = ss.getSheetByName('Snapshot_Inventario');
-  const upSheet = ss.getSheetByName('UpSeller');
+  const mlSheet = ss.getSheetByName(SHEET_CONFIG.SNAPSHOT_INVENTARIO.NAME);
+  const upSheet = ss.getSheetByName(SHEET_CONFIG.UPSELLER.NAME);
   
   if (!mlSheet || !upSheet) {
     Logger.log('❌ Error: Missing ML or UpSeller sheets.');
@@ -16,32 +17,32 @@ function runSyncAudit() {
   const mlData = mlSheet.getDataRange().getValues();
   const upData = upSheet.getDataRange().getValues();
 
-  // 1. Map UpSeller Stock by SKU
-  // SKU index based on your UpSeller sample is 0
-  // 'Está activa en venta' (Stock Flag) is index 17
-  const upMap = new Map();
-  const upHeaders = upData[0];
-  const idxUpSku = upHeaders.indexOf('SKU');
-  const idxUpActive = upHeaders.indexOf('Está activa en venta');
+  // Use centralized column indices
+  const mlSkuIdx = getColumnIndex('SNAPSHOT_INVENTARIO', 'SKU');
+  const mlStockIdx = getColumnIndex('SNAPSHOT_INVENTARIO', 'STOCK');
+  const mlTituloIdx = getColumnIndex('SNAPSHOT_INVENTARIO', 'TITULO');
+  
+  const upSkuIdx = getColumnIndex('UPSELLER', 'SKU');
+  const upActiveIdx = getColumnIndex('UPSELLER', 'ACTIVA');
 
+  // Map UpSeller Stock by SKU
+  const upMap = new Map();
   for (let i = 1; i < upData.length; i++) {
-    const sku = String(upData[i][idxUpSku]).trim();
+    const sku = String(upData[i][upSkuIdx]).trim();
     if (sku) {
-      upMap.set(sku, upData[i][idxUpActive]);
+      upMap.set(sku, upData[i][upActiveIdx]);
     }
   }
 
-  // 2. Compare with ML
+  // Compare with ML
   const discrepancies = [];
   for (let i = 1; i < mlData.length; i++) {
-    const sku = String(mlData[i][1]).trim(); // Col B
-    const mlStock = parseInt(mlData[i][3]) || 0; // Col D
-    const title = mlData[i][2]; // Col C
+    const sku = String(mlData[i][mlSkuIdx]).trim();
+    const mlStock = parseInt(mlData[i][mlStockIdx]) || 0;
+    const title = mlData[i][mlTituloIdx];
     
     const upActive = upMap.get(sku);
     
-    // Logic: If ML has stock > 0 but UpSeller says inactive ('N' or empty)
-    // Or if ML has stock 0 but UpSeller says active ('Y')
     let needsUpdate = false;
     let reason = '';
 
@@ -58,7 +59,7 @@ function runSyncAudit() {
     }
   }
 
-  // 3. Write to a new Report Sheet
+  // Write to a new Report Sheet
   let reportSheet = ss.getSheetByName('Audit_Sync_UpSeller');
   if (!reportSheet) reportSheet = ss.insertSheet('Audit_Sync_UpSeller');
   reportSheet.clear();

@@ -1,6 +1,9 @@
 /**
  * SISTEMA INTEGRADO DE AUDITORÍA DE INVENTARIO - MERCADO LIBRE
- * Versión: 4.1 FINAL STABLE
+ * Versión: 4.2 OPTIMIZED
+ * 
+ * Main entry point for Mercado Libre inventory management system.
+ * Handles authentication, webhooks, inventory audits, and reporting.
  */
 
 const ML_API_BASE = 'https://api.mercadolibre.com';
@@ -9,6 +12,11 @@ const MAX_EXECUTION_TIME = 270000;
 // ============================================================================
 // CONFIG APP - Now loaded from Script Properties for security
 // ============================================================================
+
+/**
+ * Gets application configuration from Script Properties
+ * @returns {Object} Configuration object with APP_ID, SECRET_KEY, REDIRECT_URI
+ */
 function getAppConfig() {
   const props = PropertiesService.getScriptProperties();
   return {
@@ -21,6 +29,11 @@ function getAppConfig() {
 // ============================================================================
 // MENÚ
 // ============================================================================
+
+/**
+ * Creates custom menu when spreadsheet opens
+ * Adds Mercado Libre menu with submenus for inventory, webhooks, and utilities
+ */
 function onOpen() {
   const ui = SpreadsheetApp.getUi();
   const menu = ui.createMenu('🔧 Mercado Libre');
@@ -51,6 +64,8 @@ function onOpen() {
   maintenanceMenu.addItem('✅ Verificar Estado Conexión', 'verificarEstado')
                  .addItem('✅ Validar Estructura de Hojas', 'validateAllSheets')
                  .addItem('📊 Ver Estadísticas de Cola', 'viewNotificationQueue')
+                 .addSeparator()
+                 .addItem('🗑️ Limpiar Cache', 'clearAllCaches')
                  .addItem('🛑 Detener Todos los Triggers', 'killAllTriggers')
                  .addItem('🧹 Limpiar Logs', 'clearLogs')
                  .addItem('🧹 Limpiar IDs Procesados', 'clearProcessedIds')
@@ -67,6 +82,11 @@ function onOpen() {
 // ============================================================================
 // AUTH
 // ============================================================================
+
+/**
+ * Displays authorization link to user for OAuth flow
+ * Opens Mercado Libre authorization page in browser
+ */
 function showAuthLink() {
   const config = getAppConfig();
   const authUrl =
@@ -78,6 +98,11 @@ function showAuthLink() {
   );
 }
 
+/**
+ * Handles OAuth callback with authorization code
+ * @param {Object} e - Event object with request parameters
+ * @returns {HtmlOutput} Success or error page
+ */
 function doGet(e) {
   if (e.parameter.code) {
     const ok = exchangeCodeForToken(e.parameter.code);
@@ -94,6 +119,13 @@ function doGet(e) {
 // ============================================================================
 // WEBHOOK - With Idempotency & Queue Management
 // ============================================================================
+
+/**
+ * Handles incoming webhook notifications from Mercado Libre
+ * Adds notifications to queue with idempotency checks
+ * @param {Object} e - POST event object with webhook payload
+ * @returns {TextOutput} JSON response with status OK
+ */
 function doPost(e) {
   const response = ContentService.createTextOutput(
     JSON.stringify({ status: 'ok' })
@@ -121,6 +153,12 @@ function doPost(e) {
 // ============================================================================
 // TOKENS
 // ============================================================================
+
+/**
+ * Exchanges OAuth authorization code for access/refresh tokens
+ * @param {string} code - Authorization code from OAuth callback
+ * @returns {boolean} True if successful, false otherwise
+ */
 function exchangeCodeForToken(code) {
   try {
     const config = getAppConfig();
@@ -147,6 +185,14 @@ function exchangeCodeForToken(code) {
   }
 }
 
+/**
+ * Saves OAuth tokens to Script Properties
+ * @param {Object} data - Token response from ML API
+ * @param {string} data.access_token - Access token
+ * @param {string} data.refresh_token - Refresh token
+ * @param {number} data.user_id - Mercado Libre user ID
+ * @param {number} data.expires_in - Token expiration time in seconds
+ */
 function saveTokens(data) {
   const p = PropertiesService.getScriptProperties();
   p.setProperty('ML_ACCESS_TOKEN', data.access_token);
@@ -173,6 +219,12 @@ function forceRefreshToken() {
 // ============================================================================
 // COLA SEGURA (NO PIERDE EVENTOS)
 // ============================================================================
+
+/**
+ * Processes all queued notifications with idempotency
+ * Called from menu or by trigger
+ * @returns {Object} Processing statistics {processed, failed, skipped}
+ */
 function processQueuedNotifications() {
   // Use NotificationQueue.js for idempotency and proper retry logic
   const stats = processQueueWithIdempotency();
@@ -187,6 +239,10 @@ function processQueuedNotifications() {
   return stats;
 }
 
+/**
+ * Displays notification queue status
+ * Shows pending, processed count and capacity utilization
+ */
 function viewNotificationQueue() {
   const stats = getQueueStats();
   

@@ -5,30 +5,14 @@
  *   → Hoja "estructura"
  *
  * Ejecución:
- *   UI     → Menú
+ *   UI     → Menú (available in main.js unified menu)
  *   Editor → Run main
  *   CLI    → clasp run main
  *******************************************************/
 
-/* =====================================================
- * UI
- * ===================================================== */
-
 /**
- * REMOVED: Menu integrated into main.js unified menu
- * This function is now accessible through: 🛠️ Utilidades → 🗺️ Generar Mapa de Estructura
- */
-// function onOpen() {
-//   SpreadsheetApp.getUi()
-//     .createMenu('AI Helper')
-//     .addItem('Generar Mapa de Estructura', 'uiGenerarMapa')
-//     .addToUi();
-// }
-
-
-
-/**
- * SOLO UI (menú)
+ * UI function accessible through main menu
+ * Menu Path: 🛠️ Utilidades → 🗺️ Generar Mapa de Estructura
  */
 function uiGenerarMapa() {
   const json = generarMapaIA_sinInteraccion();
@@ -41,23 +25,15 @@ function uiGenerarMapa() {
   );
 }
 
-/* =====================================================
- * ENTRYPOINT TERMINAL / EDITOR
- * ===================================================== */
-
 /**
- * Seguro para terminal y editor
- * clasp run main
+ * Entrypoint for terminal/editor execution
+ * Usage: clasp run main
  */
 function main() {
   const json = generarMapaIA_sinInteraccion();
   escribirMapaEnHoja(json);
   Logger.log('Mapa generado y guardado en la hoja "estructura".');
 }
-
-/* =====================================================
- * CORE API (SIN UI)
- * ===================================================== */
 
 function generarMapaIA_sinInteraccion() {
   const opciones = {

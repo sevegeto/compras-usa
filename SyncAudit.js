@@ -1,9 +1,11 @@
 /**
  * ML VS UPSELLER SYNC AUDIT
  * Compares real-time ML stock with manual UpSeller records to find discrepancies.
- * Uses centralized SheetConfig.js for column consistency and atomic batch writes
+ * Uses centralized SheetConfig.js for column consistency, atomic batch writes,
+ * and caching for improved performance
+ * 
+ * @returns {void}
  */
-
 function runSyncAudit() {
   const functionName = 'runSyncAudit';
   startExecutionTimer();
@@ -23,8 +25,9 @@ function runSyncAudit() {
       throw new Error('UpSeller sheet not found');
     }
 
-    const mlData = mlSheet.getDataRange().getValues();
-    const upData = upSheet.getDataRange().getValues();
+    // Use cached data for better performance
+    const mlData = getCachedSheetData(SHEET_CONFIG.SNAPSHOT_INVENTARIO.NAME);
+    const upData = getCachedSheetData(SHEET_CONFIG.UPSELLER.NAME);
 
     // Use centralized column indices
     const mlSkuIdx = getColumnIndex('SNAPSHOT_INVENTARIO', 'SKU');

@@ -1,0 +1,26 @@
+# Google Apps Script
+.clasp.json
+.claspignore
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+*.tmp
+*~
+
+# Never commit credentials or sensitive data
+*.env
+.env.local
+credentials.json
+secrets.json

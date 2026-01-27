@@ -417,18 +417,19 @@ function fullInventoryAudit() {
     
     logInfo(functionName, `Sheet accessed: ${sheet.getName()}`);
     
-    // Clear existing data (keep headers)
+    // Clear existing data (keep headers) - use clearContent instead of deleteRows
     const lastRow = sheet.getLastRow();
     if (lastRow > 1) {
-      sheet.deleteRows(2, lastRow - 1);
+      const lastCol = sheet.getLastColumn();
+      sheet.getRange(2, 1, lastRow - 1, lastCol).clearContent();
       logInfo(functionName, `Cleared ${lastRow - 1} existing rows`);
     }
     
     // Initialize headers if needed
-    if (sheet.getLastRow() === 0) {
+    if (sheet.getLastRow() === 0 || sheet.getRange(1, 1).getValue() === '') {
       const headers = ['ID', 'SKU', 'Título', 'Stock', 'Última Actualización'];
-      sheet.appendRow(headers);
-      sheet.getRange(1, 1, 1, 5).setFontWeight('bold').setBackground('#d9ead3');
+      sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+      sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold').setBackground('#d9ead3');
       logInfo(functionName, 'Headers initialized');
     } else {
       logInfo(functionName, `Headers already exist at row 1`);

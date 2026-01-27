@@ -449,23 +449,30 @@ function fullInventoryAudit() {
         break;
       }
       
-      // Fetch item details in batch
+      // Fetch item details in batches of 20 (ML API limit)
       const itemIds = data.results;
-      const detailsUrl = `${ML_API_BASE}/items?ids=${itemIds.join(',')}`;
-      const detailsResponse = api.fetchWithRetry(detailsUrl);
-      const details = JSON.parse(detailsResponse.getContentText());
+      const BATCH_SIZE = 20;
       
-      // Process batch
-      details.forEach(item => {
-        const body = item.body || item;
-        batchData.push([
-          body.id,
-          body.seller_custom_field || '',
-          body.title || '',
-          body.available_quantity || 0,
-          new Date()
-        ]);
-      });
+      for (let i = 0; i < itemIds.length; i += BATCH_SIZE) {
+        const batchIds = itemIds.slice(i, i + BATCH_SIZE);
+        const detailsUrl = `${ML_API_BASE}/items?ids=${batchIds.join(',')}`;
+        const detailsResponse = api.fetchWithRetry(detailsUrl);
+        const details = JSON.parse(detailsResponse.getContentText());
+        
+        // Process batch
+        details.forEach(item => {
+          const body = item.body || item;
+          batchData.push([
+            body.id,
+            body.seller_custom_field || '',
+            body.title || '',
+            body.available_quantity || 0,
+            new Date()
+          ]);
+        });
+        
+        Utilities.sleep(200); // Small delay between detail batches
+      }
       
       totalFetched += itemIds.length;
       logInfo(functionName, `Progress: ${totalFetched}/${totalItems}`);

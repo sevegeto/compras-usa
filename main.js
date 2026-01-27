@@ -9,6 +9,9 @@
 const ML_API_BASE = 'https://api.mercadolibre.com';
 const MAX_EXECUTION_TIME = 270000;
 
+// Sheet name constants
+const PEDIDOS_SHEET = 'Pedidos_ML';
+
 // ============================================================================
 // CONFIG APP - Now loaded from Script Properties for security
 // ============================================================================
@@ -19,11 +22,18 @@ const MAX_EXECUTION_TIME = 270000;
  */
 function getAppConfig() {
   const props = PropertiesService.getScriptProperties();
-  return {
+  const config = {
     APP_ID: props.getProperty('ML_APP_ID') || props.getProperty('ML_CLIENT_ID'),
     SECRET_KEY: props.getProperty('ML_CLIENT_SECRET'),
-    REDIRECT_URI: props.getProperty('ml_redirectUri') || 'https://script.google.com/macros/s/AKfycbwGUBTlrlI1KZ6X8j_BB5QlQSy-g4t_qByq3PKBZvrVYSJXS2i6DeUNL_r2wkwuyYKIqg/exec'
+    REDIRECT_URI: props.getProperty('ml_redirectUri')
   };
+  
+  // Validate required properties
+  if (!config.APP_ID || !config.SECRET_KEY || !config.REDIRECT_URI) {
+    throw new Error('❌ Missing required configuration. Please set ML_APP_ID, ML_CLIENT_SECRET, and ml_redirectUri in Script Properties');
+  }
+  
+  return config;
 }
 
 // ============================================================================
@@ -197,7 +207,8 @@ function saveTokens(data) {
   const p = PropertiesService.getScriptProperties();
   p.setProperty('ML_ACCESS_TOKEN', data.access_token);
   p.setProperty('ML_REFRESH_TOKEN', data.refresh_token);
-  p.setProperty('SELLER_ID', String(data.user_id));
+  p.setProperty('ML_USER_ID', String(data.user_id));
+  p.setProperty('SELLER_ID', String(data.user_id)); // Keep both for compatibility
   
   // Save expiration time with buffer (from tokenz.js logic)
   const expiresIn = data.expires_in || 21600;
@@ -316,9 +327,9 @@ function processOrderNotification(notification, token) {
 
   const order = JSON.parse(res.getContentText());
   const ss = SpreadsheetApp.getActive();
-  let sheet = ss.getSheetByName('Pedidos_ML');
+  let sheet = ss.getSheetByName(PEDIDOS_SHEET);
   if (!sheet) {
-    sheet = ss.insertSheet('Pedidos_ML');
+    sheet = ss.insertSheet(PEDIDOS_SHEET);
     sheet.appendRow(['Fecha', 'Order ID', 'Estado', 'Total', 'Items']);
   }
 
@@ -331,16 +342,28 @@ function processOrderNotification(notification, token) {
 // ============================================================================
 function setup() {
   const ss = SpreadsheetApp.getActive();
-  ['RAW_Webhook_Log', 'Pedidos_ML', 'Snapshot_Inventario'].forEach(n => {
+  
+  // Create sheets if missing
+  const REQUIRED_SHEETS = ['RAW_Webhook_Log', PEDIDOS_SHEET, SHEET_CONFIG.SNAPSHOT_INVENTARIO.NAME];
+  REQUIRED_SHEETS.forEach(n => {
     if (!ss.getSheetByName(n)) ss.insertSheet(n);
   });
 
+  // Delete existing triggers to prevent duplicates
+  const triggers = ScriptApp.getProjectTriggers();
+  triggers.forEach(trigger => {
+    if (trigger.getHandlerFunction() === 'processQueuedNotifications') {
+      ScriptApp.deleteTrigger(trigger);
+    }
+  });
+
+  // Create new trigger
   ScriptApp.newTrigger('processQueuedNotifications')
     .timeBased()
     .everyMinutes(1)
     .create();
 
-  SpreadsheetApp.getUi().alert('Sistema listo.');
+  SpreadsheetApp.getUi().alert('✅ Sistema configurado correctamente.\n\nTriggers inicializados sin duplicados.');
 }
 
 function verificarEstado() {
@@ -395,7 +418,7 @@ function fullInventoryAudit() {
     }
     
     const props = PropertiesService.getScriptProperties();
-    const userId = props.getProperty('ML_USER_ID');
+    const userId = props.getProperty('ML_USER_ID') || props.getProperty('SELLER_ID');
     if (!userId) {
       throw new Error('ML_USER_ID not configured in Script Properties');
     }
@@ -526,4 +549,70 @@ function fullInventoryAudit() {
       throw error;
     }
   }
+}
+
+// ============================================================================
+// PLACEHOLDER FUNCTIONS FOR MENU ITEMS
+// ============================================================================
+
+/**
+ * Placeholder functions for menu items
+ */
+function downloadInventoryReport() {
+  SpreadsheetApp.getUi().alert('Esta función estará disponible próximamente.');
+}
+
+function generateStockSummary() {
+  SpreadsheetApp.getUi().alert('Esta función estará disponible próximamente.');
+}
+
+function reconfigureSystem() {
+  const response = SpreadsheetApp.getUi().alert(
+    'Reconfigurar Sistema',
+    '¿Deseas reconfigurar todo el sistema? Esto reiniciará los triggers y hojas.',
+    SpreadsheetApp.getUi().ButtonSet.YES_NO
+  );
+  
+  if (response === SpreadsheetApp.getUi().Button.YES) {
+    setup();
+  }
+}
+
+function clearAllCaches() {
+  CacheService.getScriptCache().removeAll();
+  CacheService.getUserCache().removeAll();
+  CacheService.getDocumentCache().removeAll();
+  SpreadsheetApp.getUi().alert('✅ Cache limpiado');
+}
+
+function clearLogs() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Logs');
+  if (sheet && sheet.getLastRow() > 1) {
+    sheet.deleteRows(2, sheet.getLastRow() - 1);
+    SpreadsheetApp.getUi().alert('✅ Logs limpiados');
+  }
+}
+
+function clearProcessedIds() {
+  const props = PropertiesService.getScriptProperties();
+  props.deleteProperty('PROCESSED_NOTIFICATION_IDS');
+  SpreadsheetApp.getUi().alert('✅ IDs procesados limpiados');
+}
+
+function showCurrentCredentials() {
+  const props = PropertiesService.getScriptProperties();
+  const credentials = {
+    'ML_CLIENT_ID': props.getProperty('ML_CLIENT_ID') ? '✅ Configurado' : '❌ Falta',
+    'ML_CLIENT_SECRET': props.getProperty('ML_CLIENT_SECRET') ? '✅ Configurado (oculto)' : '❌ Falta',
+    'ML_ACCESS_TOKEN': props.getProperty('ML_ACCESS_TOKEN') ? '✅ Configurado' : '❌ Falta',
+    'ML_REFRESH_TOKEN': props.getProperty('ML_REFRESH_TOKEN') ? '✅ Configurado' : '❌ Falta',
+    'ML_USER_ID': props.getProperty('ML_USER_ID') || props.getProperty('SELLER_ID') || '❌ Falta',
+    'ml_redirectUri': props.getProperty('ml_redirectUri') || '❌ Falta'
+  };
+  
+  const message = Object.entries(credentials)
+    .map(([key, value]) => `${key}: ${value}`)
+    .join('\n');
+  
+  SpreadsheetApp.getUi().alert('Credenciales Actuales\n\n' + message);
 }

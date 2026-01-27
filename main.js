@@ -386,6 +386,11 @@ function fullInventoryAudit() {
   const functionName = 'fullInventoryAudit';
   startExecutionTimer();
   
+  // Declare variables outside try block so catch can access them
+  let batchData = [];
+  let totalFetched = 0;
+  let sheet = null;
+  
   try {
     logInfo(functionName, 'Starting full inventory audit');
     
@@ -401,7 +406,7 @@ function fullInventoryAudit() {
     }
     
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheet = safeGetSheet(SHEET_CONFIG.SNAPSHOT_INVENTARIO.NAME, true);
+    sheet = safeGetSheet(SHEET_CONFIG.SNAPSHOT_INVENTARIO.NAME, true);
     if (!sheet) {
       throw new Error('Failed to create/access Snapshot_Inventario sheet');
     }
@@ -428,9 +433,7 @@ function fullInventoryAudit() {
     // Fetch items using Scroll API
     const api = new MercadoLibreAPI(token);
     let scrollId = null;
-    let totalFetched = 0;
     const limit = 100;
-    const batchData = [];
     
     // Initial request
     const initialUrl = `${ML_API_BASE}/users/${userId}/items/search?search_type=scan&limit=${limit}`;
@@ -513,7 +516,7 @@ function fullInventoryAudit() {
     
   } catch (error) {
     // Write any remaining data before exiting
-    if (batchData.length > 0) {
+    if (batchData && batchData.length > 0 && sheet) {
       logInfo(functionName, `Writing ${batchData.length} items before exit`);
       safeWriteToSheet(SHEET_CONFIG.SNAPSHOT_INVENTARIO.NAME, sheet.getLastRow() + 1, 1, batchData);
     }

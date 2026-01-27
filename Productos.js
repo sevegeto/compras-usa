@@ -238,78 +238,8 @@ function updateStatus(statusText) {
 
 
 
-/**
- * Represents the Mercado Libre API client.
- */
-class MercadoLibreAPI {
-  constructor(accessToken) {
-    this.accessToken = accessToken;
-  }
-
-  fetchWithRetry(url, options = {}) {
-    const maxRetries = API_CONFIG_PRODUCTOS.MAX_RETRIES;
-    let retryDelay = API_CONFIG_PRODUCTOS.RETRY_DELAY;
-
-    const defaultHeaders = {
-      'Authorization': 'Bearer ' + this.accessToken,
-      'Content-Type': 'application/json',
-    };
-
-    const headers = {
-      ...defaultHeaders,
-      ...(options.headers || {})
-    };
-
-    const params = {
-      ...options,
-      headers: headers,
-      muteHttpExceptions: true,
-    };
-
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      try {
-        const response = UrlFetchApp.fetch(url, params);
-        const responseCode = response.getResponseCode();
-
-        if (responseCode >= 200 && responseCode < 300) {
-          return response;
-        } else if (responseCode === 429) {
-          if (attempt < maxRetries) {
-            Logger.log(`Rate limited (429). Retrying in ${retryDelay}ms... (Attempt ${attempt + 1})`);
-            Utilities.sleep(retryDelay);
-            retryDelay *= 2;
-            continue;
-          } else {
-            throw new Error(`Rate limited after ${maxRetries} retries.`);
-          }
-        } else if (responseCode >= 400 && responseCode < 500) {
-          const errorText = response.getContentText();
-          throw new Error(`Client error (${responseCode}): ${errorText}`);
-        } else if (responseCode >= 500) {
-          if (attempt < maxRetries) {
-            Logger.log(`Server error (${responseCode}). Retrying in ${retryDelay}ms... (Attempt ${attempt + 1})`);
-            Utilities.sleep(retryDelay);
-            retryDelay *= 2;
-            continue;
-          } else {
-            throw new Error(`Server error (${responseCode}) after ${maxRetries} retries.`);
-          }
-        } else {
-          throw new Error(`Unexpected HTTP status code: ${responseCode}`);
-        }
-      } catch (error) {
-        if (attempt < maxRetries) {
-          Logger.log(`Request failed. Retrying in ${retryDelay}ms... (Attempt ${attempt + 1}): ${error}`);
-          Utilities.sleep(retryDelay);
-          retryDelay *= 2;
-        } else {
-          throw new Error(`Request failed after ${maxRetries} retries: ${error}`);
-        }
-      }
-    }
-    throw new Error("Unexpected error in fetchWithRetry.");
-  }
-}
+// MercadoLibreAPI class is now defined in APIClient.js
+// Removed duplicate class definition to avoid conflicts
 
 
 function verificarHoja() {

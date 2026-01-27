@@ -197,7 +197,11 @@ function saveTokens(data) {
   const p = PropertiesService.getScriptProperties();
   p.setProperty('ML_ACCESS_TOKEN', data.access_token);
   p.setProperty('ML_REFRESH_TOKEN', data.refresh_token);
-  p.setProperty('SELLER_ID', String(data.user_id));
+  
+  // Save as both SELLER_ID and ML_USER_ID for compatibility
+  const userId = String(data.user_id);
+  p.setProperty('SELLER_ID', userId);
+  p.setProperty('ML_USER_ID', userId);
   
   // Save expiration time with buffer (from tokenz.js logic)
   const expiresIn = data.expires_in || 21600;
@@ -400,9 +404,9 @@ function fullInventoryAudit() {
     }
     
     const props = PropertiesService.getScriptProperties();
-    const userId = props.getProperty('ML_USER_ID');
+    const userId = props.getProperty('ML_USER_ID') || props.getProperty('SELLER_ID');
     if (!userId) {
-      throw new Error('ML_USER_ID not configured in Script Properties');
+      throw new Error('ML_USER_ID (or SELLER_ID) not configured in Script Properties');
     }
     
     const ss = SpreadsheetApp.getActiveSpreadsheet();

@@ -406,10 +406,13 @@ function fullInventoryAudit() {
       throw new Error('Failed to create/access Snapshot_Inventario sheet');
     }
     
+    logInfo(functionName, `Sheet accessed: ${sheet.getName()}`);
+    
     // Clear existing data (keep headers)
     const lastRow = sheet.getLastRow();
     if (lastRow > 1) {
       sheet.deleteRows(2, lastRow - 1);
+      logInfo(functionName, `Cleared ${lastRow - 1} existing rows`);
     }
     
     // Initialize headers if needed
@@ -417,6 +420,9 @@ function fullInventoryAudit() {
       const headers = ['ID', 'SKU', 'Título', 'Stock', 'Última Actualización'];
       sheet.appendRow(headers);
       sheet.getRange(1, 1, 1, 5).setFontWeight('bold').setBackground('#d9ead3');
+      logInfo(functionName, 'Headers initialized');
+    } else {
+      logInfo(functionName, `Headers already exist at row 1`);
     }
     
     // Fetch items using Scroll API
@@ -477,10 +483,15 @@ function fullInventoryAudit() {
       totalFetched += itemIds.length;
       logInfo(functionName, `Progress: ${totalFetched}/${totalItems}`);
       
-      // Write batch to sheet every 100 items
-      if (batchData.length >= 100) {
-        safeWriteToSheet(SHEET_CONFIG.SNAPSHOT_INVENTARIO.NAME, sheet.getLastRow() + 1, 1, batchData);
-        batchData.length = 0; // Clear batch
+      // Write batch to sheet more frequently (every 50 items instead of 100)
+      if (batchData.length >= 50) {
+        const written = safeWriteToSheet(SHEET_CONFIG.SNAPSHOT_INVENTARIO.NAME, sheet.getLastRow() + 1, 1, batchData);
+        if (written) {
+          logInfo(functionName, `Wrote ${batchData.length} items to sheet`);
+          batchData.length = 0; // Clear batch
+        } else {
+          logError(functionName, 'Failed to write batch', new Error('safeWriteToSheet returned false'));
+        }
       }
       
       scrollId = data.scroll_id;
@@ -491,16 +502,25 @@ function fullInventoryAudit() {
     
     // Write remaining batch
     if (batchData.length > 0) {
-      safeWriteToSheet(SHEET_CONFIG.SNAPSHOT_INVENTARIO.NAME, sheet.getLastRow() + 1, 1, batchData);
+      const written = safeWriteToSheet(SHEET_CONFIG.SNAPSHOT_INVENTARIO.NAME, sheet.getLastRow() + 1, 1, batchData);
+      if (written) {
+        logInfo(functionName, `Final batch written: ${batchData.length} items`);
+      }
     }
     
     logInfo(functionName, `Audit complete. Fetched ${totalFetched} items`);
     SpreadsheetApp.getUi().alert(`✅ Inventory Audit Complete\n\nFetched ${totalFetched} of ${totalItems} items`);
     
   } catch (error) {
+    // Write any remaining data before exiting
+    if (batchData.length > 0) {
+      logInfo(functionName, `Writing ${batchData.length} items before exit`);
+      safeWriteToSheet(SHEET_CONFIG.SNAPSHOT_INVENTARIO.NAME, sheet.getLastRow() + 1, 1, batchData);
+    }
+    
     if (error instanceof TimeoutError) {
       logError(functionName, 'Execution timeout - partial results saved', error);
-      SpreadsheetApp.getUi().alert('⚠️ Timeout Warning\n\nAudit stopped due to execution time limit. Partial results have been saved. Run again to continue.');
+      SpreadsheetApp.getUi().alert(`⚠️ Timeout Warning\n\nAudit stopped due to execution time limit.\n\n📊 Saved: ${totalFetched} items\n📝 Check Snapshot_Inventario sheet`);
     } else {
       logError(functionName, 'Audit failed', error);
       throw error;

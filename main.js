@@ -207,8 +207,11 @@ function saveTokens(data) {
   const p = PropertiesService.getScriptProperties();
   p.setProperty('ML_ACCESS_TOKEN', data.access_token);
   p.setProperty('ML_REFRESH_TOKEN', data.refresh_token);
-  p.setProperty('ML_USER_ID', String(data.user_id));
-  p.setProperty('SELLER_ID', String(data.user_id)); // Keep both for compatibility
+  
+  // Save as both SELLER_ID and ML_USER_ID for compatibility
+  const userId = String(data.user_id);
+  p.setProperty('SELLER_ID', userId);
+  p.setProperty('ML_USER_ID', userId);
   
   // Save expiration time with buffer (from tokenz.js logic)
   const expiresIn = data.expires_in || 21600;
@@ -409,6 +412,11 @@ function fullInventoryAudit() {
   const functionName = 'fullInventoryAudit';
   startExecutionTimer();
   
+  // Declare variables outside try block so catch can access them
+  let batchData = [];
+  let totalFetched = 0;
+  let sheet = null;
+  
   try {
     logInfo(functionName, 'Starting full inventory audit');
     
@@ -420,29 +428,30 @@ function fullInventoryAudit() {
     const props = PropertiesService.getScriptProperties();
     const userId = props.getProperty('ML_USER_ID') || props.getProperty('SELLER_ID');
     if (!userId) {
-      throw new Error('ML_USER_ID not configured in Script Properties');
+      throw new Error('ML_USER_ID (or SELLER_ID) not configured in Script Properties');
     }
     
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheet = safeGetSheet(SHEET_CONFIG.SNAPSHOT_INVENTARIO.NAME, true);
+    sheet = safeGetSheet(SHEET_CONFIG.SNAPSHOT_INVENTARIO.NAME, true);
     if (!sheet) {
       throw new Error('Failed to create/access Snapshot_Inventario sheet');
     }
     
     logInfo(functionName, `Sheet accessed: ${sheet.getName()}`);
     
-    // Clear existing data (keep headers)
+    // Clear existing data (keep headers) - use clearContent instead of deleteRows
     const lastRow = sheet.getLastRow();
     if (lastRow > 1) {
-      sheet.deleteRows(2, lastRow - 1);
+      const lastCol = sheet.getLastColumn();
+      sheet.getRange(2, 1, lastRow - 1, lastCol).clearContent();
       logInfo(functionName, `Cleared ${lastRow - 1} existing rows`);
     }
     
     // Initialize headers if needed
-    if (sheet.getLastRow() === 0) {
+    if (sheet.getLastRow() === 0 || sheet.getRange(1, 1).getValue() === '') {
       const headers = ['ID', 'SKU', 'Título', 'Stock', 'Última Actualización'];
-      sheet.appendRow(headers);
-      sheet.getRange(1, 1, 1, 5).setFontWeight('bold').setBackground('#d9ead3');
+      sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+      sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold').setBackground('#d9ead3');
       logInfo(functionName, 'Headers initialized');
     } else {
       logInfo(functionName, `Headers already exist at row 1`);
@@ -451,9 +460,7 @@ function fullInventoryAudit() {
     // Fetch items using Scroll API
     const api = new MercadoLibreAPI(token);
     let scrollId = null;
-    let totalFetched = 0;
     const limit = 100;
-    const batchData = [];
     
     // Initial request
     const initialUrl = `${ML_API_BASE}/users/${userId}/items/search?search_type=scan&limit=${limit}`;
@@ -536,7 +543,7 @@ function fullInventoryAudit() {
     
   } catch (error) {
     // Write any remaining data before exiting
-    if (batchData.length > 0) {
+    if (batchData && batchData.length > 0 && sheet) {
       logInfo(functionName, `Writing ${batchData.length} items before exit`);
       safeWriteToSheet(SHEET_CONFIG.SNAPSHOT_INVENTARIO.NAME, sheet.getLastRow() + 1, 1, batchData);
     }

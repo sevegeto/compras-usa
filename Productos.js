@@ -53,7 +53,7 @@ async function obtenerMLMs() {
     // refresca token y obtiene datos necesarios
     const accessToken = getAccessToken(); // This already handles refresh internally
     const props = PropertiesService.getScriptProperties();
-    const usuarioId = props.getProperty('ML_USER_ID');
+    const usuarioId = props.getProperty('ML_USER_ID') || props.getProperty('SELLER_ID');
     if (!accessToken || !usuarioId) {
       throw new Error("Falta accessToken o usuarioId en propiedades del script.");
     }
